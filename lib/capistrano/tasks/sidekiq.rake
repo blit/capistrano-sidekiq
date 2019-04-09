@@ -236,7 +236,7 @@ namespace :sidekiq do
     execute :sidekiqctl, 'stop', pid_file.to_s, fetch(:sidekiq_timeout)
   end
 
-  def start_sidekiq(pid_file, idx = 0, role = nil) # HACK added role argument for hash key
+  def start_sidekiq(pid_file, idx = 0, server) # HACK added role argument for hash key
     args = []
     args.push "--index #{idx}"
     args.push "--pidfile #{pid_file}"
@@ -250,9 +250,8 @@ namespace :sidekiq do
     args.push "--config #{fetch(:sidekiq_config)}" if fetch(:sidekiq_config)
     args.push "--concurrency #{fetch(:sidekiq_concurrency)}" if fetch(:sidekiq_concurrency)
     if (process_options = fetch(:sidekiq_options_per_process))
-      # HACK HERE - use hash (role as key) instead of array
-      # args.push process_options[idx]
-      args.push process_options[role][idx]
+      # HACK HERE - use hash instead of array
+      args.push options_for_server(server, process_options)[idx]
     end
     # use sidekiq_options for special options
     args.push fetch(:sidekiq_options) if fetch(:sidekiq_options)
@@ -283,5 +282,13 @@ namespace :sidekiq do
       fetch(:sidekiq_user) ||
       properties.fetch(:run_as) || # global property across multiple capistrano gems
       role.user
+  end
+
+  def options_for_server(server, process_options)
+    options = nil
+    server.roles.each do |role|
+      options = process_options[role] if process_options[role]
+    end
+    options
   end
 end
