@@ -263,9 +263,6 @@ namespace :sidekiq do
     else
       args.push '--daemon'
     end
-    puts ""
-    puts ">> args: #{args}"
-    puts ""
     execute :sidekiq, args.compact.join(' ')
   end
 
