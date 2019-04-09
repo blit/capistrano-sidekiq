@@ -236,7 +236,7 @@ namespace :sidekiq do
     execute :sidekiqctl, 'stop', pid_file.to_s, fetch(:sidekiq_timeout)
   end
 
-  def start_sidekiq(pid_file, idx = 0, server) # HACK added role argument for hash key
+  def start_sidekiq(pid_file, idx = 0, server)
     args = []
     args.push "--index #{idx}"
     args.push "--pidfile #{pid_file}"
