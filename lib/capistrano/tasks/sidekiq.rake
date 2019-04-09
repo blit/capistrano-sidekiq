@@ -210,7 +210,7 @@ namespace :sidekiq do
     sidekiq_roles = Array(fetch(:sidekiq_roles)).dup
     sidekiq_roles.select! { |role| host.roles.include?(role) }
     sidekiq_roles.flat_map do |role|
-      processes = fetch(:"#{ role }_processes") || fetch(:sidekiq_processes)
+      processes = fetch(:sidekiq_options_per_process) ?  fetch(:sidekiq_options_per_process)[role].count : fetch(:sidekiq_processes)
       Array.new(processes) { |idx| fetch(:sidekiq_pid).gsub(/\.pid$/, "-#{idx}.pid") }
     end
   end
@@ -284,7 +284,7 @@ namespace :sidekiq do
       role.user
   end
 
-  def options_for_server(server, process_options)
+  def options_for_server(server, process_options = fetch(:sidekiq_options_per_process))
     options = nil
     server.roles.each do |role|
       options = process_options[role] if process_options[role]
