@@ -93,9 +93,9 @@ namespace :sidekiq do
           sudo :service, fetch(:upstart_service_name), :start
         else
           each_process_with_index do |pid_file, idx|
-            # unless pid_file_exists?(pid_file) && process_exists?(pid_file)
+            unless pid_file_exists?(pid_file) && process_exists?(pid_file)
               start_sidekiq(pid_file, idx, role)
-            # end
+            end
           end
         end
       end
