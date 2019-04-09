@@ -93,9 +93,9 @@ namespace :sidekiq do
           sudo :service, fetch(:upstart_service_name), :start
         else
           each_process_with_index do |pid_file, idx|
-            unless pid_file_exists?(pid_file) && process_exists?(pid_file)
-              start_sidekiq(pid_file, idx)
-            end
+            # unless pid_file_exists?(pid_file) && process_exists?(pid_file)
+              start_sidekiq(pid_file, idx, role)
+            # end
           end
         end
       end
@@ -116,7 +116,7 @@ namespace :sidekiq do
           if pid_file_exists?(pid_file) && process_exists?(pid_file)
             stop_sidekiq(pid_file)
           end
-          start_sidekiq(pid_file, idx)
+          start_sidekiq(pid_file, idx, role)
         end
       end
     end
@@ -143,7 +143,7 @@ namespace :sidekiq do
     on roles fetch(:sidekiq_roles) do |role|
       switch_user(role) do
         each_process_with_index do |pid_file, idx|
-          start_sidekiq(pid_file, idx) unless pid_file_exists?(pid_file)
+          start_sidekiq(pid_file, idx, role) unless pid_file_exists?(pid_file)
         end
       end
     end
@@ -236,7 +236,7 @@ namespace :sidekiq do
     execute :sidekiqctl, 'stop', pid_file.to_s, fetch(:sidekiq_timeout)
   end
 
-  def start_sidekiq(pid_file, idx = 0)
+  def start_sidekiq(pid_file, idx = 0, role = nil) # HACK added role argument for hash key
     args = []
     args.push "--index #{idx}"
     args.push "--pidfile #{pid_file}"
@@ -250,7 +250,9 @@ namespace :sidekiq do
     args.push "--config #{fetch(:sidekiq_config)}" if fetch(:sidekiq_config)
     args.push "--concurrency #{fetch(:sidekiq_concurrency)}" if fetch(:sidekiq_concurrency)
     if (process_options = fetch(:sidekiq_options_per_process))
-      args.push process_options[idx]
+      # HACK HERE - use hash (role as key) instead of array
+      # args.push process_options[idx]
+      args.push process_options[role][idx]
     end
     # use sidekiq_options for special options
     args.push fetch(:sidekiq_options) if fetch(:sidekiq_options)
@@ -261,7 +263,9 @@ namespace :sidekiq do
     else
       args.push '--daemon'
     end
-
+    puts ""
+    puts ">> args: #{args}"
+    puts ""
     execute :sidekiq, args.compact.join(' ')
   end
 
