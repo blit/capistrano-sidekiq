@@ -285,6 +285,6 @@ namespace :sidekiq do
     server.roles.each do |role|
       options << process_options[role] if process_options[role]
     end
-    options.flatten.uniq
+    options.flatten.uniq.sort
   end
 end
