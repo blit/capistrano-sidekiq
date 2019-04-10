@@ -207,12 +207,8 @@ namespace :sidekiq do
   end
 
   def pid_files
-    sidekiq_roles = Array(fetch(:sidekiq_roles)).dup
-    sidekiq_roles.select! { |role| host.roles.include?(role) }
-    sidekiq_roles.flat_map do |role|
-      processes = fetch(:sidekiq_options_per_process) ?  fetch(:sidekiq_options_per_process)[role].count : fetch(:sidekiq_processes)
-      Array.new(processes) { |idx| fetch(:sidekiq_pid).gsub(/\.pid$/, "-#{idx}.pid") }
-    end
+    processes = fetch(:sidekiq_options_per_process) ? options_for_server(host).count : fetch(:sidekiq_processes)
+    Array.new(processes) { |idx| fetch(:sidekiq_pid).gsub(/\.pid$/, "-#{idx}.pid") }
   end
 
   def pid_file_exists?(pid_file)
@@ -285,10 +281,10 @@ namespace :sidekiq do
   end
 
   def options_for_server(server, process_options = fetch(:sidekiq_options_per_process))
-    options = nil
+    options = []
     server.roles.each do |role|
-      options = process_options[role] if process_options[role]
+      options << process_options[role] if process_options[role]
     end
-    options
+    options.flatten.uniq
   end
 end
