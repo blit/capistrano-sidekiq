@@ -94,7 +94,7 @@ namespace :sidekiq do
         else
           each_process_with_index do |pid_file, idx|
             unless pid_file_exists?(pid_file) && process_exists?(pid_file)
-              start_sidekiq(pid_file, idx)
+              start_sidekiq(pid_file, idx, role)
             end
           end
         end
@@ -116,7 +116,7 @@ namespace :sidekiq do
           if pid_file_exists?(pid_file) && process_exists?(pid_file)
             stop_sidekiq(pid_file)
           end
-          start_sidekiq(pid_file, idx)
+          start_sidekiq(pid_file, idx, role)
         end
       end
     end
@@ -143,7 +143,7 @@ namespace :sidekiq do
     on roles fetch(:sidekiq_roles) do |role|
       switch_user(role) do
         each_process_with_index do |pid_file, idx|
-          start_sidekiq(pid_file, idx) unless pid_file_exists?(pid_file)
+          start_sidekiq(pid_file, idx, role) unless pid_file_exists?(pid_file)
         end
       end
     end
@@ -207,12 +207,8 @@ namespace :sidekiq do
   end
 
   def pid_files
-    sidekiq_roles = Array(fetch(:sidekiq_roles)).dup
-    sidekiq_roles.select! { |role| host.roles.include?(role) }
-    sidekiq_roles.flat_map do |role|
-      processes = fetch(:"#{ role }_processes") || fetch(:sidekiq_processes)
-      Array.new(processes) { |idx| fetch(:sidekiq_pid).gsub(/\.pid$/, "-#{idx}.pid") }
-    end
+    processes = fetch(:sidekiq_options_per_process) ? options_for_server(host).count : fetch(:sidekiq_processes)
+    Array.new(processes) { |idx| fetch(:sidekiq_pid).gsub(/\.pid$/, "-#{idx}.pid") }
   end
 
   def pid_file_exists?(pid_file)
@@ -236,7 +232,7 @@ namespace :sidekiq do
     execute :sidekiqctl, 'stop', pid_file.to_s, fetch(:sidekiq_timeout)
   end
 
-  def start_sidekiq(pid_file, idx = 0)
+  def start_sidekiq(pid_file, idx = 0, server)
     args = []
     args.push "--index #{idx}"
     args.push "--pidfile #{pid_file}"
@@ -250,7 +246,8 @@ namespace :sidekiq do
     args.push "--config #{fetch(:sidekiq_config)}" if fetch(:sidekiq_config)
     args.push "--concurrency #{fetch(:sidekiq_concurrency)}" if fetch(:sidekiq_concurrency)
     if (process_options = fetch(:sidekiq_options_per_process))
-      args.push process_options[idx]
+      # HACK HERE - use hash instead of array
+      args.push options_for_server(server, process_options)[idx]
     end
     # use sidekiq_options for special options
     args.push fetch(:sidekiq_options) if fetch(:sidekiq_options)
@@ -261,7 +258,6 @@ namespace :sidekiq do
     else
       args.push '--daemon'
     end
-
     execute :sidekiq, args.compact.join(' ')
   end
 
@@ -282,5 +278,13 @@ namespace :sidekiq do
       fetch(:sidekiq_user) ||
       properties.fetch(:run_as) || # global property across multiple capistrano gems
       role.user
+  end
+
+  def options_for_server(server, process_options = fetch(:sidekiq_options_per_process))
+    options = []
+    server.roles.each do |role|
+      options << process_options[role] if process_options[role]
+    end
+    options.flatten.uniq.sort
   end
 end
